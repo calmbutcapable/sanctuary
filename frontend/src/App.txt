@@ -1,0 +1,596 @@
+import React, { useEffect, useState } from "react";
+import {
+  getProfile,
+  getRecentMemories,
+  createMemory,
+  deleteMemory,
+  Profile,
+  getWeeklyReflection,
+  Memory,
+  WeeklyReflection,
+} from "./api/client";
+
+type View = "home" | "checkin" | "journals"| "reflections";
+
+function App() {
+  const [view, setView] = useState<View>("home");
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [memories, setMemories] = useState<Memory[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [checkInText, setCheckInText] = useState("");
+  const [energyLevel, setEnergyLevel] = useState<number | null>(null);
+  const checkIns = memories.filter((m) => m.entry_type === "checkin");
+  const journals = memories.filter((m) => m.entry_type !== "checkin");
+  const [weeklyReflection, setWeeklyReflection] =
+  useState<WeeklyReflection | null>(null);
+const [loadingReflection, setLoadingReflection] = useState(false);
+
+  useEffect(() => {
+    async function loadInitial() {
+      try {
+        setLoading(true);
+        setError(null);
+        const [p, m] = await Promise.all([
+          getProfile(),
+          getRecentMemories(10),
+        ]);
+        setProfile(p);
+        setMemories(m);
+      } catch (err: any) {
+        console.error(err);
+        setError("Could not load initial data.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadInitial();
+  }, []);
+useEffect(() => {
+  async function loadReflection() {
+    try {
+      setLoadingReflection(true);
+      const r = await getWeeklyReflection();
+      setWeeklyReflection(r);
+    } catch (err) {
+      console.error(err);
+      // optional: setError("Could not load weekly reflection.");
+    } finally {
+      setLoadingReflection(false);
+    }
+  }
+
+  if (view === "reflections" && !weeklyReflection && !loadingReflection) {
+    loadReflection();
+  }
+}, [view, weeklyReflection, loadingReflection]);
+
+
+  async function handleCreateMemory() {
+    if (!checkInText.trim()) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const created = await createMemory(checkInText.trim(), "checkin", energyLevel);
+      setMemories((prev) => [created, ...prev]);
+      setCheckInText("");
+      setEnergyLevel(null);
+      setView("home");
+    } catch (err: any) {
+      console.error(err);
+      setError("Could not save your check-in.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteMemory(id: number) {
+    try {
+      setLoading(true);
+      setError(null);
+      await deleteMemory(id);
+      setMemories((prev) => prev.filter((m) => m.id !== id));
+    } catch (err: any) {
+      console.error(err);
+      setError("Could not delete that entry.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const latest = memories[0];
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        background: "#050608",
+        color: "#e5e5e5",
+      }}
+    >
+      <header
+        style={{
+          padding: "1rem 1.5rem",
+          borderBottom: "1px solid #222",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: "0.8rem", opacity: 0.7 }}>Sanctuary</div>
+          <div style={{ fontSize: "1.2rem", fontWeight: 600 }}>
+            {profile ? `Welcome, ${profile.display_name}` : "Welcome"}
+          </div>
+        </div>
+
+        <nav style={{ display: "flex", gap: "0.5rem" }}>
+          <NavButton
+            label="Home"
+            active={view === "home"}
+            onClick={() => setView("home")}
+          />
+          <NavButton
+            label="Check-In"
+            active={view === "checkin"}
+            onClick={() => setView("checkin")}
+          />
+          <NavButton
+            label="Journals"
+            active={view === "journals"}
+            onClick={() => setView("journals")}
+          />
+<NavButton
+  label="Reflections"
+  active={view === "reflections"}
+  onClick={() => setView("reflections")}
+/>
+
+        </nav>
+      </header>
+
+      <main
+        style={{
+          flex: 1,
+          padding: "1.5rem",
+          maxWidth: 800,
+          margin: "0 auto",
+        }}
+      >
+        {loading && (
+          <div
+            style={{
+              marginBottom: "1rem",
+              fontSize: "0.9rem",
+              opacity: 0.7,
+            }}
+          >
+            Working quietly in the background…
+          </div>
+        )}
+
+        {error && (
+          <div
+            style={{
+              marginBottom: "1rem",
+              padding: "0.75rem 1rem",
+              borderRadius: 8,
+              background: "#401919",
+              border: "1px solid #a33",
+              fontSize: "0.9rem",
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        {view === "home" && (
+          <section>
+            <h2 style={{ marginTop: 0 }}>Today</h2>
+            <p style={{ opacity: 0.8, fontSize: "0.95rem" }}>
+              This is your quiet space. You can write a check-in, then come
+              back later to see how your week is unfolding.
+            </p>
+
+            <button
+              onClick={() => setView("checkin")}
+              style={{
+                margin: "1rem 0",
+                padding: "0.6rem 1.2rem",
+                borderRadius: 999,
+                border: "none",
+                background: "#2b6cb0",
+                color: "white",
+                fontSize: "0.95rem",
+                cursor: "pointer",
+              }}
+            >
+              Write Today’s Check-In
+            </button>
+
+            <div style={{ marginTop: "1.5rem" }}>
+              <h3 style={{ marginBottom: "0.5rem" }}>Latest entry</h3>
+              {latest ? (
+                <MemoryCard
+                  memory={latest}
+                  onDelete={handleDeleteMemory}
+                />
+              ) : (
+                <p style={{ opacity: 0.7, fontSize: "0.9rem" }}>
+                  No entries yet. Your first check-in will appear here.
+                </p>
+              )}
+            </div>
+          </section>
+        )}
+
+        {view === "checkin" && (
+          <section>
+            <h2 style={{ marginTop: 0 }}>Today’s Check-In</h2>
+            <p style={{ opacity: 0.8, fontSize: "0.95rem" }}>
+              Write whatever is on your mind. This is just for you.
+            </p>
+        <div style={{ marginTop: "1rem" }}>
+  <div style={{ opacity: 0.85, fontSize: "0.9rem", marginBottom: "0.5rem" }}>
+    Energy today
+  </div>
+  <div style={{ marginTop: "1rem" }}>
+  <div style={{ opacity: 0.85, fontSize: "0.95rem", marginBottom: "0.5rem" }}>
+    Energy today
+  </div>
+
+  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+    {[1, 2, 3, 4, 5].map((level) => (
+      <button
+        key={level}
+        type="button"
+        onClick={() => setEnergyLevel(level)}
+        style={{
+          padding: "0.5rem 0.9rem",
+          borderRadius: 999,
+          border: energyLevel === level ? "1px solid #63b3ed" : "1px solid #444",
+          background: energyLevel === level ? "rgba(43, 108, 176, 0.25)" : "transparent",
+          color: energyLevel === level ? "#fff" : "#ccc",
+          cursor: "pointer",
+          fontSize: "0.95rem",
+        }}
+      >
+        {level}
+      </button>
+    ))}
+
+    <button
+      type="button"
+      onClick={() => setEnergyLevel(null)}
+      style={{
+        padding: "0.5rem 0.9rem",
+        borderRadius: 999,
+        border: energyLevel === null ? "1px solid #63b3ed" : "1px solid #444",
+        background: energyLevel === null ? "rgba(43, 108, 176, 0.25)" : "transparent",
+        color: energyLevel === null ? "#fff" : "#ccc",
+        cursor: "pointer",
+        fontSize: "0.95rem",
+      }}
+    >
+      Skip
+    </button>
+  </div>
+
+  <div style={{ marginTop: "0.4rem", fontSize: "0.85rem", opacity: 0.65 }}>
+    Optional. 1 = very low, 5 = very high.
+  </div>
+</div>
+
+  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+    {[1, 2, 3, 4, 5].map((level) => (
+      <button
+        key={level}
+        type="button"
+        onClick={() => setEnergyLevel(level)}
+        style={{
+          padding: "0.5rem 0.9rem",
+          borderRadius: 999,
+          border: energyLevel === level ? "1px solid #63b3ed" : "1px solid #444",
+          background: energyLevel === level ? "rgba(43, 108, 176, 0.25)" : "transparent",
+          color: energyLevel === level ? "#fff" : "#ccc",
+          cursor: "pointer",
+          fontSize: "0.9rem",
+        }}
+      >
+        {level}
+      </button>
+    ))}
+
+    <button
+      type="button"
+      onClick={() => setEnergyLevel(null)}
+      style={{
+        padding: "0.5rem 0.9rem",
+        borderRadius: 999,
+        border: energyLevel === null ? "1px solid #63b3ed" : "1px solid #444",
+        background: energyLevel === null ? "rgba(43, 108, 176, 0.25)" : "transparent",
+        color: energyLevel === null ? "#fff" : "#ccc",
+        cursor: "pointer",
+        fontSize: "0.9rem",
+      }}
+    >
+      Skip
+    </button>
+  </div>
+
+  <div style={{ marginTop: "0.4rem", fontSize: "0.8rem", opacity: 0.65 }}>
+    Optional. 1 = very low, 5 = very high.
+  </div>
+</div>
+            <textarea
+              value={checkInText}
+              onChange={(e) => setCheckInText(e.target.value)}
+              placeholder="Start typing here…"
+              style={{
+                width: "100%",
+                minHeight: "160px",
+                marginTop: "0.75rem",
+                padding: "0.75rem",
+                borderRadius: 8,
+                border: "1px solid #333",
+                background: "#111",
+                color: "#eee",
+                fontFamily: "inherit",
+                fontSize: "0.95rem",
+              }}
+            />
+
+            <div
+              style={{
+                marginTop: "0.75rem",
+                display: "flex",
+                gap: "0.5rem",
+              }}
+            >
+              <button
+                onClick={handleCreateMemory}
+                style={{
+                  padding: "0.6rem 1.2rem",
+                  borderRadius: 999,
+                  border: "none",
+                  background: "#2b6cb0",
+                  color: "white",
+                  fontSize: "0.95rem",
+                  cursor: "pointer",
+                }}
+              >
+                Save Check-In
+              </button>
+
+              <button
+                onClick={() => setView("home")}
+                style={{
+                  padding: "0.6rem 1.2rem",
+                  borderRadius: 999,
+                  border: "1px solid #555",
+                  background: "transparent",
+                  color: "#ccc",
+                  fontSize: "0.95rem",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        )}
+
+        {view === "journals" && (
+          <section>
+            <h2 style={{ marginTop: 0 }}>Journals & Memories</h2>
+            <p style={{ opacity: 0.8, fontSize: "0.95rem" }}>
+              A simple list of your recent entries.
+            </p>
+            <div
+              style={{
+                marginTop: "1rem",
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.75rem",
+              }}
+            >
+              {memories.length === 0 ? (
+  <p style={{ opacity: 0.7, fontSize: "0.9rem" }}>
+    No entries yet. Once you start checking in, they will appear here.
+  </p>
+) : (
+  <>
+    <h3 style={{ marginTop: "1rem" }}>Check-ins</h3>
+    {checkIns.length === 0 ? (
+      <p style={{ opacity: 0.6, fontSize: "0.85rem" }}>
+        No check-ins yet.
+      </p>
+    ) : (
+      checkIns.map((m) => (
+        <MemoryCard
+          key={m.id}
+          memory={m}
+          onDelete={handleDeleteMemory}
+        />
+      ))
+    )}
+
+    <h3 style={{ marginTop: "1.5rem" }}>Journal</h3>
+    {journals.length === 0 ? (
+      <p style={{ opacity: 0.6, fontSize: "0.85rem" }}>
+        No journal entries yet.
+      </p>
+    ) : (
+      journals.map((m) => (
+        <MemoryCard
+          key={m.id}
+          memory={m}
+          onDelete={handleDeleteMemory}
+        />
+      ))
+    )}
+  </>
+)}
+            </div>
+          </section>
+        )}
+        {view === "reflections" && (
+          <section>
+            <h2 style={{ marginTop: 0 }}>Weekly Reflection</h2>
+
+            {loadingReflection && (
+              <p style={{ opacity: 0.8, fontSize: "0.9rem" }}>
+                Gathering your last 7 days…
+              </p>
+            )}
+
+            {!loadingReflection && weeklyReflection && (
+              <>
+                <p style={{ opacity: 0.9, fontSize: "0.95rem" }}>
+                  {weeklyReflection.summary}
+                </p>
+
+                <div
+                  style={{
+                    marginTop: "1rem",
+                    padding: "0.75rem 1rem",
+                    borderRadius: 8,
+                    border: "1px solid #222",
+                    background: "#111",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  <div>Total entries: {weeklyReflection.total_entries}</div>
+                  <div>Active days: {weeklyReflection.active_days}</div>
+                  <div>Empty days: {weeklyReflection.empty_days}</div>
+                </div>
+
+                <h3 style={{ marginTop: "1.5rem", marginBottom: "0.5rem" }}>
+                  Prompts to think with
+                </h3>
+                <ul style={{ paddingLeft: "1.2rem", fontSize: "0.95rem" }}>
+                  {weeklyReflection.prompts.map((p, idx) => (
+                    <li key={idx} style={{ marginBottom: "0.4rem" }}>
+                      {p}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {!loadingReflection && !weeklyReflection && (
+              <p style={{ opacity: 0.8, fontSize: "0.9rem" }}>
+                No reflection data yet. Try adding at least one check-in and
+                reload this tab.
+              </p>
+            )}
+          </section>
+        )}
+
+      </main>
+    </div>
+  );
+}
+
+type NavButtonProps = {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+};
+
+function NavButton({ label, active, onClick }: NavButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "0.4rem 0.8rem",
+        borderRadius: 999,
+        border: "none",
+        cursor: "pointer",
+        fontSize: "0.9rem",
+        background: active ? "#2b6cb0" : "transparent",
+        color: active ? "#fff" : "#ccc",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function MemoryCard({
+  memory,
+  onDelete,
+}: {
+  memory: Memory;
+  onDelete?: (id: number) => void;
+}) {
+  const date = new Date(memory.created_at);
+  return (
+    <article
+      style={{
+        padding: "0.75rem 1rem",
+        borderRadius: 8,
+        border: "1px solid #222",
+        background: "#111",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "0.8rem",
+          opacity: 0.6,
+          marginBottom: "0.35rem",
+        }}
+      >
+        {date.toLocaleString()}
+      </div>
+
+      {memory.energy_level != null && (
+  <div
+    style={{
+      fontSize: "0.85rem",
+      opacity: 0.75,
+      marginBottom: "0.35rem",
+    }}
+  >
+    Energy: {memory.energy_level}/5
+  </div>
+)}
+      memory.energy_level != null && (
+        <div
+          style={{
+            fontSize: "0.8rem",
+            opacity: 0.75,
+            marginBottom: "0.35rem",
+          }}
+        >
+          Energy: {memory.energy_level}/5
+        </div>
+      )}
+      <div style={{ fontSize: "0.95rem", whiteSpace: "pre-wrap" }}>
+        {memory.raw_text}
+      </div>
+      {onDelete && (
+        <div style={{ marginTop: "0.5rem", textAlign: "right" }}>
+          <button
+            onClick={() => onDelete(memory.id)}
+            style={{
+              padding: "0.25rem 0.6rem",
+              borderRadius: 999,
+              border: "1px solid #555",
+              background: "transparent",
+              color: "#bbb",
+              fontSize: "0.8rem",
+              cursor: "pointer",
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </article>
+  );
+}
+
+export default App;
