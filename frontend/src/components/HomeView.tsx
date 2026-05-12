@@ -98,11 +98,50 @@ export default function HomeView({
 
   return (
     <section>
-      <h2 style={{ marginTop: 0 }}>Today</h2>
-      <p style={{ opacity: 0.8, fontSize: "1.1rem" }}>
-        This is your quiet space. You can write a check-in, then come back later
-        to see how your week is unfolding.
+      <h2 style={{ marginTop: 0 }}>Welcome to Sanctuary</h2>
+      <p style={{ opacity: 0.85, fontSize: "1.1rem", lineHeight: 1.6 }}>
+        Sanctuary helps you work through projects step by step, without having
+        to hold everything in your head at once.
       </p>
+
+      <p style={{ opacity: 0.85, fontSize: "1.05rem", lineHeight: 1.6 }}>
+        Ask your guide, Rook, as many questions as you like about each stage of
+        your project. He is here to help you learn, understand, and enjoy
+        completing your work.
+      </p>
+
+      <div
+        style={{
+          marginTop: "1rem",
+          marginBottom: "1.25rem",
+          padding: "1rem",
+          borderRadius: 12,
+          border: "1px solid #2b6cb0",
+          background: "rgba(43, 108, 176, 0.14)",
+        }}
+      >
+        <h3 style={{ marginTop: 0, marginBottom: "0.5rem" }}>
+          Start with a project
+        </h3>
+        <p style={{ opacity: 0.85, marginTop: 0, lineHeight: 1.5 }}>
+          Create a project and Sanctuary will help you break it into manageable
+          steps. Work through each step to gradually build your final project.
+        </p>
+        <button
+          onClick={openWorkspace}
+          style={{
+            padding: "0.6rem 1rem",
+            borderRadius: 999,
+            border: "none",
+            background: "#2b6cb0",
+            color: "#fff",
+            fontSize: "1rem",
+            cursor: "pointer",
+          }}
+        >
+          Create or open a project
+        </button>
+      </div>
 
       {justCheckedIn && (
         <div
@@ -122,7 +161,21 @@ export default function HomeView({
       )}
 
       {!stateCheckInComplete && (
-        <div style={{ marginTop: "1rem", marginBottom: "1.5rem" }}>
+        <div
+          style={{
+            marginTop: "1rem",
+            marginBottom: "1.5rem",
+            padding: "1rem",
+            borderRadius: 12,
+            border: "1px solid #222",
+            background: "#111",
+          }}
+        >
+          <h3 style={{ marginTop: 0 }}>Before you begin</h3>
+          <p style={{ opacity: 0.8, lineHeight: 1.5 }}>
+            A quick check-in can help Sanctuary understand how you are arriving
+            today. It is here to support your session, not to judge it.
+          </p>
           <StateCheckIn
             onComplete={(mood, energy) => {
               setCurrentMood(mood);
@@ -133,7 +186,6 @@ export default function HomeView({
         </div>
       )}
 
-      {stateCheckInComplete && (
         <>
           <div
             style={{
@@ -322,7 +374,8 @@ export default function HomeView({
 
           {latestJournal && (
             <div style={{ marginTop: "1.5rem" }}>
-              <h3 style={{ marginBottom: "0.5rem" }}>From your journal</h3>
+              <h3 style={{ marginBottom: "0.5rem" }}>Your thinking space</h3>
+              <p style={{ opacity: 0.9, fontSize: "1rem", lineHeight: 1.6 }}>Use your journal to clear mental clutter, capture ideas, or notice what is helping you make progress.</p>
               <div
                 style={{
                   padding: "0.75rem 1rem",
@@ -366,7 +419,8 @@ export default function HomeView({
             </div>
           )}
 
-          <h3 style={{ marginTop: "1.5rem" }}>Recent Check-Ins</h3>
+          <h3 style={{ marginTop: "1.5rem" }}>Check-ins</h3>
+          <p style={{ opacity: 0.9, fontSize: "1rem", lineHeight: 1.6 }}>Being honest about your mood and energy helps Sanctuary support the way you work today. Some days need a push; some days need smaller, calmer steps.</p>
 
           {checkIns.length <= 1 ? (
             <p style={{ opacity: 0.7, fontSize: "0.9rem" }}>
@@ -418,7 +472,6 @@ export default function HomeView({
             ))
           )}
         </>
-      )}
     </section>
   );
 }

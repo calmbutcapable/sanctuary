@@ -35,6 +35,21 @@ export default function ProjectWorkspace({
     setSessionNote(currentStep.notes ?? "");
   }
 }, [currentStep]);
+
+  useEffect(() => {
+    if (!currentStep) return;
+
+    const existingNotes = currentStep.notes ?? "";
+
+    if (sessionNote === existingNotes) return;
+
+    const timer = window.setTimeout(() => {
+      handleUpdateStepNotes(currentStep, sessionNote);
+    }, 1200);
+
+    return () => window.clearTimeout(timer);
+  }, [sessionNote, currentStep]);
+
   const [showExportOptions, setShowExportOptions] = useState(false);
 
   const [exportOptions, setExportOptions] = useState({
@@ -52,7 +67,15 @@ export default function ProjectWorkspace({
     async function load() {
       try {
         const data = await getPlanSteps(planId);
-        setSteps(data);
+
+setSteps(data);
+
+const firstIncomplete =
+  data.find((step) => !step.is_completed) ?? data[data.length - 1];
+
+if (firstIncomplete) {
+  setCurrentStep(firstIncomplete);
+}
       } finally {
         setLoading(false);
       }
@@ -169,25 +192,20 @@ async function handleExportDocx() {
     <section style={{ maxWidth: 900, margin: "0 auto", paddingTop: "1rem" }}>
       <button onClick={() => setShowExitCheck(true)}>← Back</button>
 
-      <button
-        type="button"
-        onClick={handleExportDocx}
-        disabled={exportingDocx}
-        style={{ marginLeft: "0.5rem" }}
-      >
-        {exportingDocx ? "Exporting..." : "Export DOCX"}
-      </button>
+      {allComplete ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowExportOptions((prev) => !prev)}
+            disabled={exportingDocx}
+            style={{ marginLeft: "0.5rem" }}
+          >
+            {showExportOptions ? "Hide options" : "Export options"}
+          </button>
+        </>
+      ) : null}
 
-      <button
-        type="button"
-        onClick={() => setShowExportOptions((prev) => !prev)}
-        disabled={exportingDocx}
-        style={{ marginLeft: "0.5rem" }}
-      >
-        {showExportOptions ? "Hide options" : "Export options"}
-      </button>
-
-{showExportOptions ? (
+{allComplete && showExportOptions ? (
   <div
     style={{
       marginTop: "0.75rem",
@@ -406,46 +424,249 @@ async function handleExportDocx() {
 
       {loading ? <p>Loading...</p> : null}
 
-   <div style={{ marginTop: "1rem" }}>
-  {currentStep && (
-    <div
-      style={{
-        marginTop: "1.5rem",
-        padding: "1rem",
-        border: "1px solid #333",
-        borderRadius: 12,
-        background: "rgba(255,255,255,0.03)",
-        marginBottom: "1rem",
-      }}
-    >
-      <h3>{currentStep.title}</h3>
-
-      {currentStep.description ? <p>{currentStep.description}</p> : null}
-
-      <p style={{ fontSize: "0.9rem", opacity: 0.75 }}>
-        Use Rook to talk this step through, then capture anything useful in your notes to help build your final project.
-      </p>
-
-      <button
-        type="button"
-        onClick={() => setShowThinkWithMe((prev) => !prev)}
+      <div
+        style={{
+          marginTop: "1rem",
+          display: "grid",
+          gridTemplateColumns: "minmax(220px, 0.8fr) minmax(0, 1.6fr) minmax(260px, 0.9fr)",
+          gap: "1rem",
+          alignItems: "start",
+        }}
       >
-        {showThinkWithMe ? "Hide support" : "Discuss this step with Rook"}
-      </button>
+        <aside
+          style={{
+            padding: "1rem",
+            border: "1px solid #333",
+            borderRadius: 12,
+            background: "rgba(255,255,255,0.03)",
+          }}
+        >
+          <h3 style={{ marginTop: 0 }}>Project steps</h3>
 
-      {showThinkWithMe ? (
-        <div style={{ marginTop: "1rem" }}>
-          <h4>Discuss this step with Rook</h4>
+          <p style={{ fontSize: "0.9rem", opacity: 0.75 }}>
+            Work through each step in order. You can return to earlier steps whenever you need to.
+          </p>
+
+          {steps.map((step, index) => {
+            const firstIncompleteIndex = steps.findIndex((s) => !s.is_completed);
+            const activeIndex =
+              firstIncompleteIndex === -1 ? steps.length - 1 : firstIncompleteIndex;
+            const isUnlocked = index <= activeIndex || step.is_completed;
+            const isActive = currentStep?.id === step.id;
+
+            return (
+              <button
+                key={step.id}
+                type="button"
+                disabled={!isUnlocked}
+                onClick={() => {
+                  if (!isUnlocked) return;
+                  setCurrentStep(step);
+                  setShowThinkWithMe(false);
+                  setAiSupport("");
+                  setThinkingText("");
+                }}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "0.75rem",
+                  border: isActive ? "2px solid #0991ED" : "1px solid #222",
+                  borderRadius: 10,
+                  marginBottom: "0.75rem",
+                  background: isUnlocked
+                    ? "rgba(255,255,255,0.03)"
+                    : "rgba(255,255,255,0.015)",
+                  color: "inherit",
+                  cursor: isUnlocked ? "pointer" : "not-allowed",
+                  opacity: isUnlocked ? 1 : 0.45,
+                }}
+              >
+                <strong>
+                  {index + 1}. {step.title}
+                </strong>
+
+                {step.is_completed ? (
+                  <span style={{ display: "block", marginTop: "0.25rem", opacity: 0.75 }}>
+                    ✓ Complete
+                  </span>
+                ) : !isUnlocked ? (
+                  <span style={{ display: "block", marginTop: "0.25rem", opacity: 0.75 }}>
+                    Unlocks later
+                  </span>
+                ) : (
+                  <span style={{ display: "block", marginTop: "0.25rem", opacity: 0.75 }}>
+                    Current step
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </aside>
+
+        <main
+          style={{
+            padding: "1rem",
+            border: "1px solid #333",
+            borderRadius: 12,
+            background: "rgba(255,255,255,0.03)",
+            minHeight: 360,
+          }}
+        >
+          {currentStep ? (
+            <>
+              <h2 style={{ marginTop: 0 }}>{currentStep.title}</h2>
+
+              {currentStep.description ? <p>{currentStep.description}</p> : null}
+
+              <p style={{ fontSize: "0.95rem", opacity: 0.78 }}>
+                Use this step to build your understanding. Save useful ideas, research,
+                conclusions, or draft wording in your notes so they can become part of
+                your final project document.
+              </p>
+
+              <textarea
+                value={sessionNote}
+                onChange={(e) => setSessionNote(e.target.value)}
+                placeholder="Add useful notes, research, ideas, or conclusions for this step..."
+                rows={10}
+                style={{
+                  width: "100%",
+                  marginTop: "1rem",
+                  padding: 12,
+                  borderRadius: 8,
+                  border: "1px solid #555",
+                  background: "rgba(255,255,255,0.03)",
+                  color: "inherit",
+                  fontSize: "0.95rem",
+                  lineHeight: 1.5,
+                }}
+              />
+
+              <div
+                style={{
+                  marginTop: "0.75rem",
+                  display: "flex",
+                  gap: "0.5rem",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                {!allComplete ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!currentStep) return;
+
+                      await handleUpdateStepNotes(currentStep, sessionNote);
+
+                      const updated = await updateStep(currentStep.id, {
+                        is_completed: true,
+                      });
+
+                      const updatedSteps = steps.map((s) =>
+                        s.id === updated.id ? updated : s
+                      );
+
+                      setSteps(updatedSteps);
+
+                      const next = updatedSteps.find((s) => !s.is_completed);
+
+                      if (next) {
+                        setCurrentStep(next);
+                      }
+                    }}
+                    style={{
+                      padding: "0.45rem 0.75rem",
+                      borderRadius: 8,
+                    }}
+                  >
+                    Move to next step →
+                  </button>
+                ) : null}
+              </div>
+
+              {saveStatus === "saving" && (
+                <div style={{ fontSize: "0.85rem", opacity: 0.7, marginTop: "0.5rem" }}>
+                  Saving...
+                </div>
+              )}
+
+              {saveStatus === "saved" && (
+                <div style={{ fontSize: "0.85rem", color: "#22c55e", marginTop: "0.5rem" }}>
+                  ✔ Saved
+                </div>
+              )}
+
+              {allComplete ? (
+                <div
+                  style={{
+                    marginTop: "1rem",
+                    padding: "1rem",
+                    border: "1px solid #333",
+                    borderRadius: 12,
+                    background: "rgba(255,255,255,0.03)",
+                  }}
+                >
+                  <h3 style={{ marginTop: 0 }}>Project complete</h3>
+                  <p>
+                    You have completed all the steps. Would you like to revisit
+                    anything or export your document?
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={handleExportDocx}
+                    disabled={exportingDocx}
+                    style={{
+                      padding: "0.45rem 0.75rem",
+                      borderRadius: 8,
+                    }}
+                  >
+                    {exportingDocx ? "Exporting..." : "Export DOCX"}
+                  </button>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <p>Select the first step to begin.</p>
+          )}
+        </main>
+
+        <aside
+          style={{
+            padding: "1rem",
+            border: "1px solid #333",
+            borderRadius: 12,
+            background: "rgba(255,255,255,0.03)",
+            position: "sticky",
+            top: "1rem",
+          }}
+        >
+          <h3 style={{ marginTop: 0 }}>Rook</h3>
+
+          <p style={{ fontSize: "0.9rem", opacity: 0.75 }}>
+            Ask Rook questions about the current step. Keep anything useful by adding it to your notes.
+          </p>
 
           <textarea
             value={thinkingText}
             onChange={(e) => setThinkingText(e.target.value)}
-            placeholder="What are you thinking about this step?"
-            rows={4}
-            style={{ width: "100%", padding: 12 }}
+            placeholder="Ask about this step, request ideas, or explain what feels unclear..."
+            rows={5}
+            style={{
+              width: "100%",
+              padding: 12,
+              borderRadius: 8,
+              border: "1px solid #555",
+              background: "rgba(255,255,255,0.03)",
+              color: "inherit",
+              fontSize: "0.95rem",
+              lineHeight: 1.5,
+            }}
           />
 
-          <div style={{ marginTop: "0.75rem", display: "flex", gap: "0.5rem" }}>
+          <div style={{ marginTop: "0.75rem", display: "grid", gap: "0.5rem" }}>
             <button type="button" onClick={() => handleSupportRequest("clarify")}>
               Help me understand
             </button>
@@ -462,118 +683,23 @@ async function handleExportDocx() {
           {loadingSupport ? <p>Thinking this through...</p> : null}
 
           {aiSupport ? (
-            <div style={{ marginTop: "0.75rem", whiteSpace: "pre-wrap" }}>
+            <div
+              style={{
+                marginTop: "0.75rem",
+                padding: "0.75rem",
+                border: "1px solid #333",
+                borderRadius: 10,
+                background: "rgba(0,0,0,0.18)",
+                whiteSpace: "pre-wrap",
+                fontSize: "0.95rem",
+                lineHeight: 1.5,
+              }}
+            >
               {aiSupport}
             </div>
           ) : null}
-        </div>
-      ) : null}
-
-      <textarea
-        value={sessionNote}
-        onChange={(e) => setSessionNote(e.target.value)}
-        placeholder="Add your notes here… anything useful from your discussion with Rook"
-        rows={5}
-        style={{
-          width: "100%",
-          marginTop: "1rem",
-          padding: 12,
-          borderRadius: 8,
-          border: "1px solid #555",
-          background: "rgba(255,255,255,0.03)",
-          color: "inherit",
-          fontSize: "0.95rem",
-        }}
-      />
-
-      <button
-        type="button"
-        onClick={() => handleUpdateStepNotes(currentStep, sessionNote)}
-        style={{
-          marginTop: "0.5rem",
-          padding: "0.45rem 0.75rem",
-          borderRadius: 8,
-        }}
-      >
-        Save notes
-      </button>
-
-      {saveStatus === "saving" && (
-        <div style={{ fontSize: "0.85rem", opacity: 0.7 }}>Saving...</div>
-      )}
-
-      {saveStatus === "saved" && (
-        <div style={{ fontSize: "0.85rem", color: "#22c55e" }}>✔ Saved</div>
-      )}
-
-      {!allComplete ? (
-  <button
-    type="button"
-    onClick={async () => {
-      if (!currentStep) return;
-
-      const updated = await updateStep(currentStep.id, {
-        is_completed: true,
-      });
-
-      const updatedSteps = steps.map((s) =>
-        s.id === updated.id ? updated : s
-      );
-
-      setSteps(updatedSteps);
-
-      const next = updatedSteps.find((s) => !s.is_completed);
-
-      if (next) {
-        setCurrentStep(next);
-      }
-    }}
-  >
-    Next Step →
-  </button>
-) : (
-  <div style={{ marginTop: "1rem" }}>
-    <p><strong>All steps are complete.</strong></p>
-    <p>You can revisit any step or export your work.</p>
-
-    <button onClick={handleExportDocx}>
-      Export DOCX
-    </button>
-  </div>
-)}
-    </div>
-  )}
-
-  {steps.map((step) => (
-    <button
-      key={step.id}
-      type="button"
-      onClick={() => setCurrentStep(step)}
-      style={{
-        display: "block",
-        width: "100%",
-        textAlign: "left",
-        padding: "0.75rem",
-        border:
-          currentStep?.id === step.id
-            ? "2px solid #0991ED"
-            : "1px solid #222",
-        borderRadius: 10,
-        marginBottom: "0.75rem",
-        background: "rgba(255,255,255,0.03)",
-        color: "inherit",
-        cursor: "pointer",
-      }}
-    >
-      <strong>{step.title}</strong>
-      {step.is_completed && (
-        <span style={{ marginLeft: "0.5rem", opacity: 0.75 }}>
-          ✓ Complete
-        </span>
-      )}
-    </button>
-  ))}
-</div>
+        </aside>
+      </div>
     </section>
   );
 }

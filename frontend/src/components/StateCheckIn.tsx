@@ -31,9 +31,17 @@ export default function StateCheckIn({ onComplete }: Props) {
         background: "#111",
       }}
     >
-      <h3 style={{ marginTop: 0, marginBottom: "0.5rem" }}>How are you feeling?</h3>
-      <p style={{ opacity: 0.75, marginTop: 0, marginBottom: "1rem" }}>
-        Start with a quick sense check.
+      <h3 style={{ marginTop: 0, marginBottom: "0.5rem" }}>Before you begin</h3>
+      <p style={{ opacity: 0.78, marginTop: 0, marginBottom: "0.75rem", lineHeight: 1.5 }}>
+        A quick check-in helps Sanctuary understand how you are arriving today.
+      </p>
+      <p style={{ opacity: 0.78, marginTop: 0, marginBottom: "0.75rem", lineHeight: 1.5 }}>
+        Your mood and energy can affect how work feels. Some days you may be
+        ready to push forward; other days smaller, calmer steps can help you
+        keep moving.
+      </p>
+      <p style={{ opacity: 0.72, marginTop: 0, marginBottom: "1rem", lineHeight: 1.5 }}>
+        There is no right answer. This is here to support you, not judge you.
       </p>
 
       <div style={{ marginBottom: "1rem" }}>
